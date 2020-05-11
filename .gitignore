@@ -1,5 +1,5 @@
 
 *.csv
-lab1-spark/.ipynb_checkpoints/lab1-spark-checkpoint.ipynb
 *.crc
 */output/
+*.ipynb
