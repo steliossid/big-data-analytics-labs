@@ -14,6 +14,7 @@ ostergotland_lines = ostergotland_file.map(lambda line: line.split(";"))
 
 
 
+
 # 1
 year_temperature = lines.map(lambda x: (x[1][0:4], float(x[3])))
 year_temperature = year_temperature.filter(lambda x: int(x[0])>=1950 and int(x[0])<=2014)
@@ -30,6 +31,7 @@ max_temperatures.saveAsTextFile("1_max_temps")
 
 
 
+
 # 2
 date_temperature = lines.map(lambda x: (x[1][0:7], float(x[3])))
 date_temperature = date_temperature.filter(lambda x: int(x[0][0:4])>=1950 and int(x[0][0:4])<=2014 and x[1]>=10)
@@ -38,6 +40,7 @@ count_month_occ = date_temperature.map(lambda x: (x[0], 1))
 count_month_occ = count_month_occ.reduceByKey(lambda a,b:a+b)
 
 count_month_occ.saveAsTextFile("2_count_readings")
+
 
 
 
@@ -56,6 +59,7 @@ count_month_occ.saveAsTextFile("2_count_distinct_readings")
 
 
 
+
 # 3
 date_temperature = lines.map(lambda x: ((x[1], x[0]), float(x[3])))
 date_temperature = date_temperature.filter(lambda x: int(x[0][0][0:4])>=1960 and int(x[0][0][0:4])<=2014)
@@ -66,6 +70,7 @@ sum_month_temperatures = month_temperatures.reduceByKey(lambda a,b: a+b)
 avg_month_temperatures = sum_month_temperatures.map(lambda x: ((x[0][0], x[0][1]), round(x[1]/62, 1)))
 
 avg_month_temperatures.saveAsTextFile("3_avg_monthly_temp")
+
 
 
 
@@ -87,33 +92,6 @@ avg_month_temperatures.saveAsTextFile("4_station_precipitation_temperature")
 
 
 
-# 5 - MY IMPLEMENTATION
-# Map OG station IDs and Precipitation
-og_stations = ostergotland_lines.map(lambda x: (x[0])).collect()
-station_precipitation = prec_lines.map(lambda x: ((x[1][0:7], x[0]), float(x[3])))
-
-# Keep rows with year [1993, 2016] and OG stations only
-station_precipitation = station_precipitation.filter(lambda x: int(x[0][0][0:4])>=1993 and int(x[0][0][0:4])<=2016 and x[0][1] in og_stations)
-
-# Only OG stations: Year-Month, Precipitation
-og_stations_precipitation = station_precipitation.map(lambda x: (x[0][0], x[1]))
-
-# Count each Year-Month pair
-prec_count = og_stations_precipitation.map(lambda x: (x[0], 1))
-prec_count = prec_count.reduceByKey(lambda x,y: x+y)
-
-# Sum each Year-Month pair and find avearge
-prec_sum = og_stations_precipitation.reduceByKey(lambda x,y: x+y)
-prec_avg = prec_sum.union(prec_count).reduceByKey(lambda x,y: x/y)
-prec_avg = prec_avg.map(lambda x: (x[0], round(x[1],1)))
-
-prec_avg.saveAsTextFile("5_my_ostergotland_monthly_avg_prec")
-
-
-
-
-
-
 
 # 5
 # Map OG station IDs and Precipitation
@@ -122,34 +100,53 @@ og_stations = sc.broadcast(og_stations).value
 station_precipitation = prec_lines.map(lambda x: ((x[1][0:7], x[0]), float(x[3])))
 
 # Keep rows with OG stations and year [1993, 2016]
-station_precipitation = station_precipitation.filter(lambda x: int(x[0][0][0:4])>=1993 and int(x[0][0][0:4])<=2016 and x[0][1] in og_stations)
+station_precipitation = station_precipitation.filter(lambda x: int(x[0][0][0:4])>=1993 
+                                                     and int(x[0][0][0:4])<=2016 
+                                                     and x[0][1] in og_stations)
 
 # Total monthly precipitation for each station
-total_monthly_prec_for_station = station_precipitation.reduceByKey(lambda a,b: ((a[0][0], a[0][1]), a[1]+b[1]))
+total_monthly_prec_for_station = station_precipitation.reduceByKey(lambda x,y: x+y)
 
 # Monthly average (by averaging over stations)
 
-# Sum of month
 sum_of_month = total_monthly_prec_for_station.map(lambda x: (x[0][0], x[1]))
 sum_of_month = sum_of_month.reduceByKey(lambda x,y: x+y)
 
-# number of stations in a month
-no_stations_month = total_monthly_prec_for_station.map(lambda x: (x[0][0], 1))
+no_stations_month = station_precipitation.map(lambda x: (x[0][0], 1))
 no_stations_month = no_stations_month.reduceByKey(lambda x,y: x+y)
 
 # average
 prec_avg = sum_of_month.union(no_stations_month).reduceByKey(lambda x,y: x/y)
 prec_avg = prec_avg.map(lambda x: (x[0], round(x[1],1)))
 
-prec_avg.saveAsTextFile("5_ostergotland_monthly_avg_prec")
+print(prec_avg.collect())
+#prec_avg.saveAsTextFile("5_ostergotland_monthly_avg_prec")
 
 
 
 
-# ------ OTHER IMPLEMENTATION: divide by total number of stations ----------
-# Sum of month
-#total_monthly_prec_for_station = total_monthly_prec_for_station.map(lambda x: (x[0][0], x[1]))
 
-# Sum each Year-Month pair and find avearge
-#prec_sum = total_monthly_prec_for_station.reduceByKey(lambda x,y: x+y)
-#prec_avg = prec_sum.map(lambda x: (x[0], round(x[1]/len(og_stations),1)))
+
+### ------- MY IMPLEMENTATION --------
+# # Map OG station IDs and Precipitation
+# og_stations = ostergotland_lines.map(lambda x: (x[0])).collect()
+# station_precipitation = prec_lines.map(lambda x: ((x[1][0:7], x[0]), float(x[3])))
+
+# # Keep rows with year [1993, 2016] and OG stations only
+# station_precipitation = station_precipitation.filter(lambda x: int(x[0][0][0:4])>=1993 
+#                                                      and int(x[0][0][0:4])<=2016 
+#                                                      and x[0][1] in og_stations)
+
+# # Only OG stations: Year-Month, Precipitation
+# og_stations_precipitation = station_precipitation.map(lambda x: (x[0][0], x[1]))
+
+# # Count each Year-Month pair
+# prec_count = og_stations_precipitation.map(lambda x: (x[0], 1))
+# prec_count = prec_count.reduceByKey(lambda x,y: x+y)
+
+# # Sum each Year-Month pair and find avearge
+# prec_sum = og_stations_precipitation.reduceByKey(lambda x,y: x+y)
+# prec_avg = prec_sum.union(prec_count).reduceByKey(lambda x,y: x/y)
+# prec_avg = prec_avg.map(lambda x: (x[0], round(x[1],1)))
+
+# print(prec_avg.collect())

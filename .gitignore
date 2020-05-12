@@ -1,5 +1,5 @@
 */input_data/
+*/output/
 *.csv
 *.crc
-*/output/
 *.ipynb
