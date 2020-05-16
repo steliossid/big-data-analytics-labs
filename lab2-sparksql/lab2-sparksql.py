@@ -79,5 +79,34 @@ avgMonthlyTempStation = schemaTempReadings.select("year", "month", "day", "stati
 avgMonthlyTempStation.show()
 
 # 4
+tempReadingsRow = temp_parts.map(lambda p: (p[0], float(p[3])))
+tempReadingsString = ["station", "temperature"]
+precReadingsRow = prec_parts.map(lambda p: (p[0], int(p[1].split("-")[0]), int(p[1].split("-")[1]), int(p[1].split("-")[2]), float(p[3])))
+precReadingsString = ["station", "year", "month", "day", "precipitation"]
+
+schemaTempReadings = sqlContext.createDataFrame(tempReadingsRow, tempReadingsString)
+schemaTempReadings.registerTempTable("tempReadingsTable")
+schemaPrecReadings = sqlContext.createDataFrame(precReadingsRow, precReadingsString)
+schemaPrecReadings.registerTempTable("precReadingsTable")
+
+station_precipitation = schemaPrecReadings.select("station", "year", "month", "day", "precipitation") \
+.groupBy("station", "year", "month", "day").agg(F.sum(F.col("precipitation")).alias("daily_prec")) \
+.groupBy("station").agg(F.max(F.col("daily_prec")).alias("max_daily_prec")) \
+.filter((F.col("max_daily_prec") >= 100) & (F.col("max_daily_prec") <= 200)) \
+.orderBy("station", ascending=False)
+
+station_temperature  = schemaTempReadings.select("station", "temperature") \
+.groupBy("station").agg(F.max(F.col("temperature")).alias("max_temp")) \
+.filter((F.col("max_temp") >= 25) & (F.col("max_temp") <= 30)) \
+.orderBy("station", ascending=False)
+
+# station_precipitation.show() # only 4 stations with dailt max prec between 100 and 200
+# station_temperature.show()
+
+sp = station_precipitation.alias("sp")
+st = station_temperature.alias("st")
+stationPrecTemp = sp.join(st, ["station"], "inner")
+
+stationPrecTemp.show() # empty table - no match between stations in daily max prec and max temp
 
 # 5
