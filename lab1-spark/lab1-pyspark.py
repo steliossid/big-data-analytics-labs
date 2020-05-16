@@ -67,11 +67,11 @@ station_temperature = lines.map(lambda x: (x[0], float(x[3])))
 station_precipitation = station_precipitation.reduceByKey(lambda a,b: a+b)
 station_precipitation = station_precipitation.map(lambda x: (x[0][0], x[1]))
 
-station_precipitation = station_precipitation.filter(lambda x: x[1]>=100 and x[1]<=200)
-station_temperature = station_temperature.filter(lambda x: x[1]>=25 and x[1]<=30)
-
 station_precipitation = station_precipitation.reduceByKey(max)
 station_temperature = station_temperature.reduceByKey(max)
+
+station_precipitation = station_precipitation.filter(lambda x: x[1]>=100 and x[1]<=200)
+station_temperature = station_temperature.filter(lambda x: x[1]>=25 and x[1]<=30)
 
 station_precipitation_temperature = station_precipitation.join(station_temperature)
 
