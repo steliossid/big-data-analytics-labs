@@ -110,3 +110,28 @@ stationPrecTemp = sp.join(st, ["station"], "inner")
 stationPrecTemp.show() # empty table - no match between stations in daily max prec and max temp
 
 # 5
+og_stations_col = og_parts.map(lambda p: (p[0], p[1]))
+og_stations_str = ["station", "name"]
+precReadingsRow = prec_parts.map(lambda p: (p[0], int(p[1].split("-")[0]), int(p[1].split("-")[1]), int(p[1].split("-")[2]), float(p[3])))
+precReadingsString = ["station", "year", "month", "day", "precipitation"]
+
+schemaOGstations = sqlContext.createDataFrame(og_stations_col, og_stations_str)
+schemaOGstations.registerTempTable("OGstationsTable")
+schemaPrecReadings = sqlContext.createDataFrame(precReadingsRow, precReadingsString)
+schemaPrecReadings.registerTempTable("precReadingsTable")
+
+og_stations = schemaOGstations.select("station")
+
+sp = schemaPrecReadings.alias("sp")
+og = og_stations.alias("og")
+OG_station_Prec = sp.join(og, ["station"], "inner")
+
+OG_station_Prec = OG_station_Prec.select("station", "year", "month", "precipitation") \
+.filter((F.col("year") >= 1993) & (F.col("year") <= 2016)) \
+.groupBy("station", "year", "month").agg(F.sum(F.col("precipitation")).alias("monthly_sum"), F.count(F.col("precipitation")).alias("no_readings_month")) \
+.select("station", "year", "month", (F.col("monthly_sum")/F.col("no_readings_month")).alias("avg_prec_for_station")) \
+.groupBy("year", "month").agg(F.sum(F.col("avg_prec_for_station")).alias("sum_of_month_all_stations"), F.count(F.col("avg_prec_for_station")).alias("number_of_stations_in_month")) \
+.select("year", "month", (F.round((F.col("sum_of_month_all_stations")/F.col("number_of_stations_in_month")),1)).alias("avgMonthlyPrecipitation")) \
+.orderBy(["year", "month"], ascending=False)
+
+OG_station_Prec.show()
