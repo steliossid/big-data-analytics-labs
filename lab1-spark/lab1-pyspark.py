@@ -95,6 +95,5 @@ sum_of_month_all = avg_prec_for_station.map(lambda x: (x[0][0], x[1])).reduceByK
 number_of_stations_in_month = avg_prec_for_station.map(lambda x: (x[0][0], 1)).reduceByKey(lambda x,y: x+y)
 avg_prec_all_stations = sum_of_month_all.union(number_of_stations_in_month).reduceByKey(lambda x,y: x/y)
 avg_prec_all_stations = avg_prec_all_stations.map(lambda x: (x[0], round(x[1],1)))
-
 # print(prec_avg.collect())
 prec_avg.saveAsTextFile("output/5_ostergotland_monthly_avg_prec")
