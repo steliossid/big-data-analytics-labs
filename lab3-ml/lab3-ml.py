@@ -27,14 +27,6 @@ def haversine(lon1, lat1, lon2, lat2):
   km = 6367*c
   return km
 
-# tweak params
-h_distance = 180
-h_date = 40
-h_time = 4
-a = 58.4274 # Latitude
-b = 14.826 # Longitude
-date = "2014-05-04"
-
 def d_distance(b, a, longitude, latitude):
   dist = haversine(b, a, longitude, latitude)
   return(dist)
@@ -56,6 +48,14 @@ def d_date(date, date_col):
 def gaussian_kernel(u, h):
   return(exp(-(u/h)**2))
   
+# tweak params
+h_distance = 180
+h_date = 40
+h_time = 4
+a = 58.4274 # Latitude
+b = 14.826 # Longitude
+date = "2014-05-04"
+  
 d1 = stations_parts.map(lambda x: (x[0], d_distance(b, a, float(x[4]), float(x[3]))))
 stations = sc.broadcast(d1.collect()).value
 station_ids = []
@@ -66,7 +66,7 @@ temperatures = temp_parts.map(lambda x: (x[0], x[1], x[2], float(x[3])))
 temperatures = temperatures.filter(lambda x: int(x[1][5:7]) != 2 and int(x[1][8:10])!= 29)
 temperatures = temperatures.filter(lambda x: x[0] in station_ids and datetime.datetime.strptime(date, "%Y-%m-%d") >= datetime.datetime.strptime(x[1], "%Y-%m-%d"))
 #temperatures = temperatures.sample(False, 0.1)
-#temperatures = temperatures.cache()
+temperatures = temperatures.cache()
 
 stations_dict = dict(stations)
 d1 = temperatures.map(lambda x: (stations_dict[x[0]]))
@@ -94,10 +94,12 @@ for time in times:
   k3 = np.array([k3]).T
   ks = np.c_[k1, k2, k3]
   sum_rows = np.array([np.sum(ks, axis=1)]).T
-  kernel_sum_temp  = np.sum(np.multiply(sum_rows, temps))
+  sumrows_temps = sum_rows.dot(temps)
+  #sumrows_temps = np.multiply(sum_rows, temps)
+  kernel_sum_temp  = np.sum(sumrows_temps)
   kernel_sum_rows = np.sum(sum_rows)
   pred_temps.append(round(kernel_sum_temp/kernel_sum_rows,1))
 
-print("Lab3 Predicted Temperatures")
+print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Lab3 Predicted Temperatures")
 print(pred_temps)
-sc.parallelize(pred_temps).saveAsTextFile("lab3-ml/output")
+sc.parallelize(pred_temps).saveAsTextFile("BDA/output")
