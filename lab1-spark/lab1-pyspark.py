@@ -81,19 +81,18 @@ station_precipitation_temperature.saveAsTextFile("output/4_station_precipitation
 # 5
 og_stations = ostergotland_lines.map(lambda x: (x[0])).collect()
 og_stations = sc.broadcast(og_stations).value
-station_precipitation = prec_lines.map(lambda x: ((x[1][0:7], x[0]), float(x[3])))
+station_precipitation = prec_lines.map(lambda x: ((x[1], x[0]), float(x[3])))
 
 station_precipitation = station_precipitation.filter(lambda x: int(x[0][0][0:4])>=1993 
                                                      and int(x[0][0][0:4])<=2016 
                                                      and x[0][1] in og_stations)
 
-total_monthly_prec_for_station = station_precipitation.reduceByKey(lambda x,y: x+y)
-number_of_prec_for_station = station_precipitation.map(lambda x: ((x[0][0], x[0][1]), 1)).reduceByKey(lambda x,y: x+y)
-avg_prec_for_station = total_monthly_prec_for_station.union(number_of_prec_for_station).reduceByKey(lambda x,y: x/y)
-
-sum_of_month_all = avg_prec_for_station.map(lambda x: (x[0][0], x[1])).reduceByKey(lambda x,y: x+y)
-number_of_stations_in_month = avg_prec_for_station.map(lambda x: (x[0][0], 1)).reduceByKey(lambda x,y: x+y)
+daily_prec_for_station = station_precipitation.reduceByKey(lambda x,y: x+y)
+total_monthly_prec_for_station = daily_prec_for_station.map(lambda x: ((x[0][0][0:7], x[0][1]), x[1])).reduceByKey(lambda x,y: x+y)
+sum_of_month_all = total_monthly_prec_for_station.map(lambda x: (x[0][0], x[1])).reduceByKey(lambda x,y: x+y)
+number_of_stations_in_month = total_monthly_prec_for_station.map(lambda x: (x[0][0], 1)).reduceByKey(lambda x,y: x+y)
 avg_prec_all_stations = sum_of_month_all.union(number_of_stations_in_month).reduceByKey(lambda x,y: x/y)
 avg_prec_all_stations = avg_prec_all_stations.map(lambda x: (x[0], round(x[1],1)))
+
 # print(prec_avg.collect())
 prec_avg.saveAsTextFile("output/5_ostergotland_monthly_avg_prec")
